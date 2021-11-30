@@ -2,6 +2,20 @@ import pygame
 import random
 
 
+class CustomList(list):
+    def __getitem__(self, index):
+        if index < 0:
+            raise IndexError(f'Expected a positive index, instead got {index}')
+
+        return super(CustomList, self).__getitem__(index)
+
+    def __setitem__(self, key, value):
+        if key < 0:
+            raise IndexError(f'Expected a positive index, instead got {key}')
+
+        return super(CustomList, self).__setitem__(key, value)
+
+
 class Game:
     colors = {
         'WHITE': (255, 255, 255),
@@ -32,10 +46,14 @@ class Game:
         self.computer_field = self.init_field()
 
         self.arrange_ships(self.user_field)
-        self.show_field(self.user_field)
+        # self._arrange_ship(self.user_field, 4, 'up', 5, 7)
+        # print(self._check_ship(self.user_field, 3, 'left', 8, 3))
+        # self._arrange_ship(self.user_field, 3, 'left', 8, 3)
+        # self.show_field(self.user_field)
+        # print(self.user_field[1][-1])
 
         self.screen = pygame.display.set_mode(self.window_size)
-        pygame.display.set_caption('Warship')
+        pygame.display.set_caption('Warships')
 
         self.font_size = int(self.block_size / 1.5)
 
@@ -45,9 +63,9 @@ class Game:
         self.screen.fill(self.colors.get('WHITE'))
 
     def init_field(self):
-        field = []
+        field = CustomList([])
         for i in range(self.field_size):
-            field.append([0] * self.field_size)
+            field.append(CustomList([0] * self.field_size))
 
         return field
 
@@ -68,6 +86,8 @@ class Game:
                     # if in selected position with selected direction can arrange ship -> arrange it
                     if self._check_ship(field, ship, direction, pos_x, pos_y):
                         self._arrange_ship(field, ship, direction, pos_x, pos_y)
+                        print(pos_x, pos_y, direction, ship)
+                        self.show_field(field)
                         break
 
     @staticmethod
@@ -87,66 +107,54 @@ class Game:
         except IndexError:
             pass
 
+        # check if can arrange ship in selected place
         if direction == 'up':
             try:
-                # pos_y -= 1
                 for i in range(ship):
-                    if pos_x < 0 or pos_y < 0:
-                        return False
-
                     if field[pos_y - 1][pos_x] == 1 \
                             or field[pos_y - 1][pos_x - 1] == 1 \
                             or field[pos_y - 1][pos_x + 1] == 1:
                         return False
 
-                    pos_y -= i
+                    pos_y -= 1
             except IndexError:
                 return False
         elif direction == 'down':
             try:
-                # pos_y += 1
                 for i in range(ship):
-                    if pos_x < 0 or pos_y < 0:
-                        return False
-
                     if field[pos_y + 1][pos_x] == 1 \
                             or field[pos_y + 1][pos_x - 1] == 1 \
                             or field[pos_y + 1][pos_x + 1] == 1:
                         return False
 
-                    pos_y += i
+                    pos_y += 1
             except IndexError:
                 return False
         elif direction == 'right':
             try:
-                # pos_x += 1
                 for i in range(ship):
-                    if pos_x < 0 or pos_y < 0:
-                        return False
-
                     if field[pos_y][pos_x + 1] == 1 \
                             or field[pos_y + 1][pos_x + 1] == 1 \
                             or field[pos_y - 1][pos_x + 1] == 1:
                         return False
 
-                    pos_x += i
+                    pos_x += 1
             except IndexError:
                 return False
         elif direction == 'left':
             try:
-                # pos_x -= 1
                 for i in range(ship):
-                    if pos_x < 0 or pos_y < 0:
-                        return False
-
+                    print(f'Begin: {pos_x} and i: {i}')
                     if field[pos_y - 1][pos_x - 1] == 1 \
                             or field[pos_y + 1][pos_x - 1] == 1 \
                             or field[pos_y][pos_x - 1] == 1:
                         return False
 
-                    pos_x -= i
+                    pos_x -= 1
+                    print(f'End: {pos_x} and i: {i}')
             except IndexError:
                 return False
+
         return True
 
     @staticmethod
@@ -164,12 +172,11 @@ class Game:
             for i in range(ship):
                 field[pos_y][pos_x + i] = 1
 
-
-    def show_field(self, field):
+    @staticmethod
+    def show_field(field):
         for y_array in field:
             print(y_array)
         print('\n')
-
 
     def draw_grid(self):
         letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
@@ -204,7 +211,7 @@ class Game:
                 # Ver num grid1
                 self.screen.blit(num_ver, (self.left_margin - (self.block_size // 2 + num_ver_width // 2),
                                            self.upper_margin + i * self.block_size + (
-                                                       self.block_size // 2 - num_ver_height // 2)))
+                                                   self.block_size // 2 - num_ver_height // 2)))
                 # Hor letters grid1
                 self.screen.blit(letters_hor, (self.left_margin + i * self.block_size + (self.block_size //
                                                                                          2 - letters_hor_width // 2),
@@ -213,7 +220,7 @@ class Game:
                 self.screen.blit(num_ver, (self.left_margin - (self.block_size // 2 + num_ver_width // 2) + 15 *
                                            self.block_size,
                                            self.upper_margin + i * self.block_size + (
-                                                       self.block_size // 2 - num_ver_height // 2)))
+                                                   self.block_size // 2 - num_ver_height // 2)))
                 # Hor letters grid2
                 self.screen.blit(letters_hor, (self.left_margin + i * self.block_size + (self.block_size // 2 -
                                                                                          letters_hor_width // 2) + 15 * self.block_size,
@@ -224,8 +231,6 @@ class Game:
 
     def end_game(self):
         self.game_over = True
-
-
 
 
 def main():
