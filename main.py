@@ -17,10 +17,25 @@ class CustomList(list):
 
 
 class Game:
-    colors = {
-        'WHITE': (255, 255, 255),
-        'BLACK': (0, 0, 0)
-    }
+    WHITE = (255, 255, 255)
+    BLACK = (0, 0, 0)
+    RED = (255, 0, 0)
+
+    # sizes
+    left_margin = 250
+    upper_margin = 50
+    fields_distance = 100
+    cell_width = cell_height = 40
+    button_left_margin = 50
+    button_width = 140
+    button_height = 50
+    button_distance = 50
+
+    buttons_section = None
+    buttons_coordinates = {}
+
+    user_field_section = None
+    user_field_coordinates = {}
 
     ships = {
         4: 1,
@@ -35,44 +50,32 @@ class Game:
         # initial size of game field
         self.field_size = size
 
-        # initial sizes of game window
-        self.block_size = self.field_size * 3
-        self.left_margin = self.field_size * 20
-        self.upper_margin = self.field_size * 5
-
-        self.window_size = (self.left_margin + 30 * self.block_size, self.upper_margin + 15 * self.block_size)
+        self.window_size = (1200, 600)
 
         self.user_field = self.init_field()
         self.computer_field = self.init_field()
 
         self.arrange_ships(self.user_field)
-        # self._arrange_ship(self.user_field, 4, 'up', 5, 7)
-        # print(self._check_ship(self.user_field, 3, 'left', 8, 3))
-        # self._arrange_ship(self.user_field, 3, 'left', 8, 3)
-        # self.show_field(self.user_field)
-        # print(self.user_field[1][-1])
+        self.arrange_ships(self.computer_field)
 
         self.screen = pygame.display.set_mode(self.window_size)
         pygame.display.set_caption('Warships')
 
-        self.font_size = int(self.block_size / 1.5)
+        self.font_size = int(self.cell_width / 1.5)
 
         self.font = pygame.font.SysFont('notosans', self.font_size)
         self.game_over = False
 
-        self.screen.fill(self.colors.get('WHITE'))
+        self.screen.fill(self.WHITE)
 
     def init_field(self):
-        field = CustomList([])
-        for i in range(self.field_size):
-            field.append(CustomList([0] * self.field_size))
+        field = CustomList([0] * self.field_size for i in range(self.field_size))
 
         return field
 
     def arrange_ships(self, field: list):
         directions = ['up', 'down', 'left', 'right']
         for ship, count in self.ships.items():  # unpack ships
-            print(ship, count)
             # go through all ship with selected size
             for i in range(count):
                 while True:
@@ -86,8 +89,6 @@ class Game:
                     # if in selected position with selected direction can arrange ship -> arrange it
                     if self._check_ship(field, ship, direction, pos_x, pos_y):
                         self._arrange_ship(field, ship, direction, pos_x, pos_y)
-                        print(pos_x, pos_y, direction, ship)
-                        self.show_field(field)
                         break
 
     @staticmethod
@@ -144,14 +145,12 @@ class Game:
         elif direction == 'left':
             try:
                 for i in range(ship):
-                    print(f'Begin: {pos_x} and i: {i}')
                     if field[pos_y - 1][pos_x - 1] == 1 \
                             or field[pos_y + 1][pos_x - 1] == 1 \
                             or field[pos_y][pos_x - 1] == 1:
                         return False
 
                     pos_x -= 1
-                    print(f'End: {pos_x} and i: {i}')
             except IndexError:
                 return False
 
@@ -173,58 +172,79 @@ class Game:
                 field[pos_y][pos_x + i] = 1
 
     @staticmethod
-    def show_field(field):
+    def show_field(field: list):
         for y_array in field:
             print(y_array)
-        print('\n')
+
+    def draw_user_field(self):
+        # draw text under field
+        x, y = (self.left_margin + self.field_size * self.cell_width) / 2 + self.left_margin / 3, self.upper_margin / 2
+        text_surface = self.font.render('User\'s field', False, self.BLACK)
+        self.screen.blit(text_surface, (x, y))
+
+        # draw field
+        x, y = self.left_margin, self.upper_margin
+
+        for row in self.user_field:
+            for col in row:
+                box_rect = [x, y, self.cell_width, self.cell_height]
+                if col == 0:
+                    pygame.draw.rect(self.screen, self.BLACK, box_rect, 2)
+                elif col == 1:
+                    pygame.draw.rect(self.screen, self.RED, box_rect, 0)
+
+                x += self.cell_width
+            x = self.left_margin
+            y += self.cell_width
+
+    def draw_computer_field(self):
+        # draw text under field
+        x, y = self.left_margin + self.cell_width * self.field_size + self.cell_width * self.field_size / 2, self.upper_margin / 2
+        text_surface = self.font.render('Computer\'s field', False, self.BLACK)
+        self.screen.blit(text_surface, (x, y))
+
+        # draw field
+        x, y = self.left_margin + self.cell_width * self.field_size + self.fields_distance, self.upper_margin
+
+        for row in self.computer_field:
+            for col in row:
+                box_rect = [x, y, self.cell_width, self.cell_height]
+                if col == 0:
+                    pygame.draw.rect(self.screen, self.BLACK, box_rect, 2)
+                elif col == 1:
+                    pygame.draw.rect(self.screen, self.RED, box_rect, 0)
+
+                x += self.cell_width
+            x = self.left_margin + self.cell_width * self.field_size + self.fields_distance
+            y += self.cell_width
+
+    def draw_buttons(self):
+        buttons = ['Start', 'Arrange']
+        x, y = self.button_left_margin, self.upper_margin
+        x_text, y_text = (self.button_left_margin + self.button_width) / 2, (
+                self.upper_margin + self.button_height) / 2 + 15
+        y_begin = y
+
+        for button in buttons:
+            box_rect = [x, y, self.button_width, self.button_height]
+            pygame.draw.rect(self.screen, self.BLACK, box_rect, 2)
+            # save button coordinates
+            self.buttons_coordinates[button] = (x, y, x + self.button_width, y + self.button_height)
+
+            text_surface = self.font.render(button, False, self.RED)
+            self.screen.blit(text_surface, (x_text, y_text))
+
+            y += self.button_distance + self.button_height
+            y_text += self.button_distance + self.button_height
+
+        self.buttons_section = (x, y_begin, x + self.button_width, y - self.button_height)
 
     def draw_grid(self):
         letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
-        for i in range(11):
-            # Hor grid1
-            pygame.draw.line(self.screen, self.colors.get('BLACK'),
-                             (self.left_margin, self.upper_margin + i * self.block_size),
-                             (self.left_margin + 10 * self.block_size, self.upper_margin + i * self.block_size), 1)
-            # Vert grid1
-            pygame.draw.line(self.screen, self.colors.get('BLACK'),
-                             (self.left_margin + i * self.block_size, self.upper_margin),
-                             (self.left_margin + i * self.block_size, self.upper_margin + 10 * self.block_size), 1)
-            # Hor grid2
-            pygame.draw.line(self.screen, self.colors.get('BLACK'),
-                             (self.left_margin + 15 * self.block_size, self.upper_margin +
-                              i * self.block_size),
-                             (self.left_margin + 25 * self.block_size, self.upper_margin + i * self.block_size), 1)
-            # Vert grid2
-            pygame.draw.line(self.screen, self.colors.get('BLACK'),
-                             (self.left_margin + (i + 15) * self.block_size, self.upper_margin),
-                             (self.left_margin + (i + 15) * self.block_size, self.upper_margin + 10 * self.block_size),
-                             1)
 
-            if i < 10:
-                num_ver = self.font.render(str(i + 1), True, self.colors.get('BLACK'))
-                letters_hor = self.font.render(letters[i], True, self.colors.get('BLACK'))
-
-                num_ver_width = num_ver.get_width()
-                num_ver_height = num_ver.get_height()
-                letters_hor_width = letters_hor.get_width()
-
-                # Ver num grid1
-                self.screen.blit(num_ver, (self.left_margin - (self.block_size // 2 + num_ver_width // 2),
-                                           self.upper_margin + i * self.block_size + (
-                                                   self.block_size // 2 - num_ver_height // 2)))
-                # Hor letters grid1
-                self.screen.blit(letters_hor, (self.left_margin + i * self.block_size + (self.block_size //
-                                                                                         2 - letters_hor_width // 2),
-                                               self.upper_margin + 10 * self.block_size))
-                # Ver num grid2
-                self.screen.blit(num_ver, (self.left_margin - (self.block_size // 2 + num_ver_width // 2) + 15 *
-                                           self.block_size,
-                                           self.upper_margin + i * self.block_size + (
-                                                   self.block_size // 2 - num_ver_height // 2)))
-                # Hor letters grid2
-                self.screen.blit(letters_hor, (self.left_margin + i * self.block_size + (self.block_size // 2 -
-                                                                                         letters_hor_width // 2) + 15 * self.block_size,
-                                               self.upper_margin + 10 * self.block_size))
+        self.draw_user_field()
+        self.draw_computer_field()
+        self.draw_buttons()
 
     def start_game(self):
         pass
@@ -235,14 +255,22 @@ class Game:
 
 def main():
     game = Game()
+    game.draw_grid()
+    pygame.display.update()
 
     while not game.game_over:
+        mouse = pygame.mouse.get_pos()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 game.game_over = True
-
-        game.draw_grid()
-        pygame.display.update()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                x_begin, y_begin, x_end, y_end = game.buttons_section
+                # check if mouse pressed in buttons section
+                if x_begin < mouse[0] < x_end and y_begin < mouse[1] < y_end:
+                    for button, value in game.buttons_coordinates.items():
+                        x_begin, y_begin, x_end, y_end = value
+                        if x_begin < mouse[0] < x_end and y_begin < mouse[1] < y_end:
+                            print(f'{button} pressed')
 
 
 main()
