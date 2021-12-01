@@ -1,6 +1,14 @@
+from __future__ import annotations
+
 import pygame
 import random
 
+
+# 0 - empty
+# 1 - ship
+# 2 - injured
+# 3 - destroyed
+# 4 - miss
 
 class CustomList(list):
     def __getitem__(self, index):
@@ -22,6 +30,19 @@ class Player:
         self.is_ai = is_ai
         self.name = name
         self.index = index
+
+    @staticmethod
+    def make_shot(target_player: Player, pos_x: int, pos_y: int):
+        if target_player.field.get_value(pos_x, pos_y) == 0:
+            target_player.field.set_value(pos_x, pos_y, 4)
+        elif target_player.field.get_value(pos_x, pos_y) == 1:
+            target_player.field.set_value(pos_x, pos_y, 2)
+        # elif target_player.field.get_value(pos_x, pos_y) == 2:
+        #     target_player.field.set_value(pos_x, pos_y, 2)
+        # elif target_player.field.get_value(pos_x, pos_y) == 3:
+        #     target_player.field.set_value(pos_x, pos_y, 3)
+        # elif target_player.field.get_value(pos_x, pos_y) == 4:
+        #     target_player.field.set_value(pos_x, pos_y, 4)
 
 
 class Field:
@@ -138,11 +159,11 @@ class Field:
             for i in range(ship):
                 self.field[pos_y][pos_x + i] = 1
 
-    def get_value(self, row, col):
-        return self.field[row][col]
+    def get_value(self, pos_x, pos_y):
+        return self.field[pos_y][pos_x]
 
-    def set_value(self, row, col, value):
-        self.field[row][col] = value
+    def set_value(self, pos_x, pos_y, value):
+        self.field[pos_y][pos_x] = value
 
 
 class Game:
@@ -221,6 +242,8 @@ class Game:
                     pygame.draw.rect(self.screen, self.BLACK, box_rect, 2)
                 elif value == 1:  # ship
                     pygame.draw.rect(self.screen, self.RED, box_rect, 0)
+                elif value == 2:  # injured
+                    pygame.draw.rect(self.screen, self.BLACK, box_rect, 0)
 
                 # save cell coordinates
                 player.field.coordinates[(row, col)] = (x, y, x + self.cell_width, y + self.cell_height)
@@ -267,11 +290,34 @@ class Game:
     def button_press(self, button: str):
         if button == 'Start':
             self.start_game = True
+            print('start')
         elif button == 'Arrange':
             self.players[0].field.init_field()
             self.players[0].field.arrange_ships()
             self.draw_grid()
             pygame.display.update()
+
+    def change_player(self):
+        if self.player_index == 0:
+            self.player_index = 1
+        elif self.player_index == 1:
+            self.player_index = 0
+
+    def shot_to_field(self, mouse, player_from, player_to):
+        user2_x_begin, user2_y_begin, user2_x_end, user2_y_end = self.players[player_to].field.section
+
+        # check if mouse pressed in player_to field section
+        if user2_x_begin < mouse[0] < user2_x_end and user2_y_begin < mouse[1] < user2_y_end:
+            # go through all cells coordinates
+            for cell, coordinates in self.players[player_to].field.coordinates.items():
+                x_begin, y_begin, x_end, y_end = coordinates
+                # found pressed cell
+                if x_begin < mouse[0] < x_end and y_begin < mouse[1] < y_end:
+                    x, y = cell
+                    self.players[player_from].make_shot(self.players[player_to], x, y)
+                    self.draw_grid()
+                    self.change_player()
+                    pygame.display.update()
 
     def game_loop(self):
         while not self.game_over:
@@ -279,39 +325,37 @@ class Game:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.game_over = True
-                if self.player_index == 0 and self.start_game:
+                if not self.start_game:
                     if event.type == pygame.MOUSEBUTTONDOWN:
                         butt_x_begin, butt_y_begin, butt_x_end, butt_y_end = self.buttons_section
-                        user1_x_begin, user1_y_begin, user1_x_end, user1_y_end = self.players[0].field.section
-                        user2_x_begin, user2_y_begin, user2_x_end, user2_y_end = self.players[1].field.section
-
                         # check if mouse pressed in buttons section
                         if butt_x_begin < mouse[0] < butt_x_end and butt_y_begin < mouse[1] < butt_y_end:
                             for button, coordinates in self.buttons_coordinates.items():
                                 x_begin, y_begin, x_end, y_end = coordinates
                                 if x_begin < mouse[0] < x_end and y_begin < mouse[1] < y_end:
                                     self.button_press(button)
-
-                        # check if mouse pressed in user 1 field section
-                        elif user1_x_begin < mouse[0] < user1_x_end and user1_y_begin < mouse[1] < user1_y_end:
-                            for cell, coordinates in self.players[0].field.coordinates.items():
-                                x_begin, y_begin, x_end, y_end = coordinates
-                                if x_begin < mouse[0] < x_end and y_begin < mouse[1] < y_end:
-                                    print(f'{cell} pressed')
-
-                        # check if mouse pressed in user 2 field section
-                        elif user2_x_begin < mouse[0] < user2_x_end and user2_y_begin < mouse[1] < user2_y_end:
-                            for cell, coordinates in self.players[1].field.coordinates.items():
-                                x_begin, y_begin, x_end, y_end = coordinates
-                                if x_begin < mouse[0] < x_end and y_begin < mouse[1] < y_end:
-                                    print(f'{cell} pressed')
+                if self.start_game:
+                    if self.player_index == 0:
+                        # if player is computer
+                        if self.players[0].is_ai:
+                            pass
+                        else:
+                            if event.type == pygame.MOUSEBUTTONDOWN:
+                                self.shot_to_field(mouse, 0, 1)
+                    elif self.player_index == 1:
+                        # if player is computer
+                        if self.players[1].is_ai:
+                            pass
+                        else:
+                            if event.type == pygame.MOUSEBUTTONDOWN:
+                                self.shot_to_field(mouse, 1, 0)
 
     def end_game(self):
         self.game_over = True
 
 
 def main():
-    players = [Player('User', 0), Player('Computer', 1, is_ai=True)]
+    players = [Player('User', 0), Player('Computer', 1, is_ai=False)]
     game = Game(players)
 
 
