@@ -10,6 +10,14 @@ import random
 # 3 - destroyed
 # 4 - miss
 
+def get_random_position(field: list) -> tuple:
+    y = random.choice(range(len(field)))  # int
+    y_array = field[y]  # list
+    x = random.choice(range(len(y_array)))  # int
+
+    return x, y
+
+
 class CustomList(list):
     def __getitem__(self, index):
         if index < 0:
@@ -71,15 +79,14 @@ class Field:
 
     def arrange_ships(self) -> None:
         """ Arrange ships on player's field """
+        self.ships = []
         directions = ['up', 'down', 'left', 'right']
         for ship_size, count in Game.ships.items():  # unpack ships
             # go through all ship with selected size
             for i in range(count):
                 while True:
                     # get random position on the field
-                    y = random.choice(range(len(self.field)))  # int
-                    y_array = self.field[y]  # list
-                    x = random.choice(range(len(y_array)))  # int
+                    x, y = get_random_position(self.field)
 
                     direction = random.choice(directions)
 
@@ -88,7 +95,6 @@ class Field:
                         ship = Ship(ship_size, x, y, direction)
                         self._arrange_ship(ship)
                         self.ships.append(ship)
-                        print(ship, ship.coordinates)
                         break
 
     def _check_ship(self, ship: int, direction: str, x: int, y: int) -> bool:
@@ -186,11 +192,14 @@ class Field:
                 self.field[ship.y][ship.x + i] = 1
                 ship.coordinates.append((ship.x + i, ship.y))
 
+    def get_field(self):
+        return self.field
+
     def show_field(self):
         for row in self.field:
             print(row)
 
-    def get_value(self, x: int, y: int) -> None:
+    def get_value(self, x: int, y: int) -> int:
         return self.field[y][x]
 
     def _set_value(self, x: int, y: int, value: int) -> None:
@@ -286,10 +295,8 @@ class Game:
         self.players = players
         self._set_players_hp()
 
-        self.players[0].field.arrange_ships()
-
-        # for player in self.players:
-        #     player.field.arrange_ships()
+        for player in self.players:
+            player.field.arrange_ships()
 
         self.window_size = (1200, 600)
         self.screen = pygame.display.set_mode(self.window_size)
@@ -336,8 +343,10 @@ class Game:
                 box_rect = [x, y, self.cell_width, self.cell_height]
                 if value == 0:  # empty
                     pygame.draw.rect(self.screen, self.BLACK, box_rect, 2)
-                elif value == 1:  # ship
+                elif value == 1 and not player.is_ai:  # ship
                     pygame.draw.rect(self.screen, self.BLUE, box_rect, 0)
+                elif value == 1 and player.is_ai:
+                    pygame.draw.rect(self.screen, self.BLACK, box_rect, 2)
                 elif value == 2:  # injured
                     pygame.draw.rect(self.screen, self.RED, box_rect, 0)
                 elif value == 3:  # destroyed
@@ -437,9 +446,16 @@ class Game:
                     self._change_player()
                     pygame.display.update()
 
-    def _check_hp(self, player: Player) -> None:
+    def _check_hp(self, player: Player) -> bool:
+        """
+        Check if player is alive
+        :param player:
+        :return: True if player's hp is 0, else False
+        """
         if player.hp == 0:
-            self._end_game()
+            return True
+
+        return False
 
     def _set_players_hp(self) -> None:
         for player in self.players:
@@ -448,6 +464,9 @@ class Game:
                 hp += self.ships.get(ship) * ship
 
             player.set_hp(hp)
+
+    def _end_game(self) -> None:
+        self.game_over = True
 
     def game_loop(self):
         while not self.game_over:
@@ -472,23 +491,38 @@ class Game:
                         else:
                             if event.type == pygame.MOUSEBUTTONDOWN:
                                 self._make_shot(mouse, 0, 1)
-                                self._check_hp(self.players[1])
+                                if self._check_hp(self.players[1]):
+                                    self._end_game()
 
                     elif self.player_index == 1:
                         # if player is computer
+                        x, y = 0, 0
                         if self.players[1].is_ai:
-                            pass
+                            while True:
+                                x, y = get_random_position(self.players[0].field.get_field())
+
+                                if self.players[0].field.get_value(x, y) == 2 \
+                                        or self.players[0].field.get_value(x, y) == 3 \
+                                        or self.players[0].field.get_value(x, y) == 4:
+                                    continue
+                                else:
+                                    break
+
+                            self.players[1].shot_to_field(players[0], x, y)
+                            self._draw_grid()
+                            self._change_player()
+                            pygame.display.update()
+                            if self._check_hp(self.players[0]):
+                                self._end_game()
                         else:
                             if event.type == pygame.MOUSEBUTTONDOWN:
                                 self._make_shot(mouse, 1, 0)
-                                self._check_hp(self.players[0])
-
-    def _end_game(self) -> None:
-        self.game_over = True
+                                if self._check_hp(self.players[0]):
+                                    self._end_game()
 
 
 if __name__ == '__main__':
-    players = [Player('User', 0), Player('Computer', 1, is_ai=False)]
+    players = [Player('User', 0, is_ai=False), Player('Computer', 1, is_ai=True)]
     game = Game(players)
     game.game_loop()
     pygame.quit()
